@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>💝 깜짝 선물</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; touch-action: manipulation; }
+  body {
+    font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    background: linear-gradient(160deg, #ffe3ec 0%, #ffd6e8 40%, #e8d9ff 100%);
+    display: flex; align-items: center; justify-content: center;
+    user-select: none; -webkit-user-select: none;
+  }
+  #game { position: relative; width: 100%; height: 100%; max-width: 480px; }
+
+  .screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 24px;
+  }
+
+  h1 { font-size: 26px; color: #d4537e; margin-bottom: 12px; }
+  .sub { font-size: 15px; color: #99567a; line-height: 1.6; margin-bottom: 28px; }
+
+  .btn {
+    background: #ff7aa8; color: #fff; border: none;
+    font-size: 18px; font-weight: 700;
+    padding: 16px 44px; border-radius: 999px;
+    box-shadow: 0 6px 0 #e0568a;
+    cursor: pointer; transition: transform .1s;
+  }
+  .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #e0568a; }
+
+  #hud {
+    position: absolute; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 20px; z-index: 5;
+    font-weight: 700; color: #c23d6d; font-size: 17px;
+  }
+  #bar-wrap {
+    flex: 1; height: 14px; margin: 0 12px;
+    background: rgba(255,255,255,.6); border-radius: 999px; overflow: hidden;
+  }
+  #bar { height: 100%; width: 0%; background: linear-gradient(90deg,#ff7aa8,#ff4d88); border-radius: 999px; transition: width .2s; }
+
+  .heart {
+    position: absolute; font-size: 44px; cursor: pointer;
+    animation: pop .25s ease-out;
+    filter: drop-shadow(0 3px 4px rgba(200,60,110,.3));
+  }
+  @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
+  .heart.caught { animation: burst .3s ease-out forwards; pointer-events: none; }
+  @keyframes burst { to { transform: scale(2); opacity: 0; } }
+
+  #clear h1 { font-size: 24px; color: #b03a68; }
+  #big {
+    font-size: 54px; font-weight: 900; color: #ff2e79;
+    margin: 20px 0; letter-spacing: 2px;
+    text-shadow: 3px 3px 0 #fff;
+    animation: bounce .6s ease infinite alternate;
+    white-space: nowrap;
+  }
+  @keyframes bounce { from { transform: scale(1) rotate(-2deg); } to { transform: scale(1.12) rotate(2deg); } }
+
+  .confetti {
+    position: absolute; top: -20px; font-size: 22px;
+    animation: fall linear forwards;
+  }
+  @keyframes fall {
+    to { transform: translateY(110vh) rotate(720deg); }
+  }
+  .hidden { display: none !important; }
+  #plus {
+    position: absolute; font-weight: 900; color: #ff2e79; font-size: 20px;
+    pointer-events: none; animation: rise .6s ease-out forwards;
+  }
+  @keyframes rise { to { transform: translateY(-40px); opacity: 0; } }
+</style>
+</head>
+<body>
+<div id="game">
+
+  <div class="screen" id="start">
+    <div style="font-size:60px; margin-bottom:16px;">💌</div>
+    <h1>가영이에게 도착한 게임</h1>
+    <p class="sub">화면에 나타나는 하트를 잡아줘!<br>15개를 다 잡으면 특별한 메시지가... 💕</p>
+    <button class="btn" id="startBtn">게임 시작</button>
+  </div>
+
+  <div class="screen hidden" id="play" style="justify-content:flex-start;">
+    <div id="hud">
+      <span>💘</span>
+      <div id="bar-wrap"><div id="bar"></div></div>
+      <span id="count">0/15</span>
+    </div>
+  </div>
+
+  <div class="screen hidden" id="clear">
+    <h1>🎉 클리어! 🎉</h1>
+    <p class="sub">축하해! 상품은 바로...</p>
+    <div id="big">가영이바보</div>
+    <div style="font-size:34px;">😜💖</div>
+    <button class="btn" style="margin-top:28px;" id="retryBtn">다시 하기</button>
+  </div>
+
+</div>
+<script>
+  const GOAL = 15;
+  let score = 0, spawnTimer = null;
+  const game = document.getElementById('game');
+  const startS = document.getElementById('start');
+  const playS = document.getElementById('play');
+  const clearS = document.getElementById('clear');
+  const bar = document.getElementById('bar');
+  const count = document.getElementById('count');
+  const emojis = ['💖','💕','💗','💓','❤️','🩷'];
+
+  document.getElementById('startBtn').onclick = startGame;
+  document.getElementById('retryBtn').onclick = startGame;
+
+  function startGame() {
+    score = 0;
+    updateHud();
+    startS.classList.add('hidden');
+    clearS.classList.add('hidden');
+    playS.classList.remove('hidden');
+    document.querySelectorAll('.heart,.confetti').forEach(e => e.remove());
+    spawnHeart();
+    spawnTimer = setInterval(spawnHeart, 900);
+  }
+
+  function updateHud() {
+    count.textContent = score + '/' + GOAL;
+    bar.style.width = (score / GOAL * 100) + '%';
+  }
+
+  function spawnHeart() {
+    if (document.querySelectorAll('.heart:not(.caught)').length >= 4) return;
+    const h = document.createElement('div');
+    h.className = 'heart';
+    h.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    const W = game.clientWidth, H = game.clientHeight;
+    h.style.left = 20 + Math.random() * (W - 90) + 'px';
+    h.style.top = 90 + Math.random() * (H - 200) + 'px';
+    h.addEventListener('pointerdown', catchHeart, { once: true });
+    game.appendChild(h);
+    setTimeout(() => { if (!h.classList.contains('caught')) h.remove(); }, 2200);
+  }
+
+  function catchHeart(e) {
+    const h = e.currentTarget;
+    h.classList.add('caught');
+    setTimeout(() => h.remove(), 300);
+    score++;
+    updateHud();
+    const p = document.createElement('div');
+    p.id = 'plus'; p.textContent = '+1';
+    p.style.left = h.style.left; p.style.top = h.style.top;
+    game.appendChild(p);
+    setTimeout(() => p.remove(), 600);
+    if (score >= GOAL) endGame();
+  }
+
+  function endGame() {
+    clearInterval(spawnTimer);
+    document.querySelectorAll('.heart').forEach(e => e.remove());
+    playS.classList.add('hidden');
+    clearS.classList.remove('hidden');
+    confetti();
+  }
+
+  function confetti() {
+    const items = ['🎉','💖','✨','🎊','💕','⭐'];
+    for (let i = 0; i < 40; i++) {
+      setTimeout(() => {
+        const c = document.createElement('div');
+        c.className = 'confetti';
+        c.textContent = items[Math.floor(Math.random() * items.length)];
+        c.style.left = Math.random() * 100 + '%';
+        c.style.animationDuration = (2 + Math.random() * 2) + 's';
+        game.appendChild(c);
+        setTimeout(() => c.remove(), 4500);
+      }, i * 80);
+    }
+  }
+</script>
+</body>
+</html>
